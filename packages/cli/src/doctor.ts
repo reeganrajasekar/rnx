@@ -1,5 +1,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { delimiter } from "node:path";
+import { homedir } from "node:os";
 import pc from "picocolors";
 import { capture } from "./process.js";
 import { findProject, resolveCommunityCli } from "./project.js";
@@ -12,6 +14,25 @@ export interface Check {
   ok: boolean;
   detail: string;
   optional?: boolean;
+}
+function installedVersions(directory: string | undefined, file: string): string[] {
+  if (!directory) return [];
+  try {
+    return readdirSync(directory).filter((version) => existsSync(join(directory, version, file)));
+  } catch {
+    return [];
+  }
+}
+
+function androidStudio(): string | undefined {
+  const candidates = process.platform === "win32"
+    ? [join(process.env.ProgramFiles ?? "C:\\Program Files", "Android", "Android Studio", "bin", "studio64.exe")]
+    : process.platform === "darwin"
+      ? ["/Applications/Android Studio.app", join(homedir(), "Applications", "Android Studio.app")]
+      : ["/opt/android-studio/bin/studio.sh", "/usr/local/android-studio/bin/studio.sh"];
+  const names = process.platform === "win32" ? ["studio64.exe"] : ["studio", "studio.sh"];
+  candidates.push(...(process.env.PATH ?? "").split(delimiter).filter(Boolean).flatMap((dir) => names.map((name) => join(dir, name))));
+  return candidates.find((candidate) => existsSync(candidate));
 }
 async function command(
   name: string,
@@ -105,6 +126,18 @@ export async function diagnose(
         root,
       ),
     );
+    if (process.env.JAVA_HOME) {
+      const validHome = existsSync(join(process.env.JAVA_HOME, "bin", process.platform === "win32" ? "java.exe" : "java"));
+      checks.push({ name: "JAVA_HOME", ok: validHome, detail: validHome ? process.env.JAVA_HOME : `${process.env.JAVA_HOME} is invalid. Open a new terminal or set JAVA_HOME to your JDK.` });
+    }
+    checks.push(await command(javaTool("javac"), ["-version"], "JDK compiler", "Install a full JDK and set JAVA_HOME.", root));
+    const studio = androidStudio();
+    checks.push({
+      name: "Android Studio",
+      ok: !!studio,
+      optional: true,
+      detail: studio ?? "Not found in common locations or PATH. Install Android Studio, or ensure the SDK tools are installed separately.",
+    });
     const sdk = androidSdk(root);
     checks.push({
       name: "Android SDK",
@@ -113,12 +146,24 @@ export async function diagnose(
         sdk ??
         "Install Android Studio and set ANDROID_HOME to the SDK directory.",
     });
-    const tools = sdk && join(sdk, "build-tools");
+    const platforms = installedVersions(sdk && join(sdk, "platforms"), "android.jar");
+    checks.push({
+      name: "Android SDK platforms",
+      ok: platforms.length > 0,
+      detail: platforms.length ? platforms.join(", ") : "Install the project compile SDK in Android Studio SDK Manager.",
+    });
+    const tools = installedVersions(sdk && join(sdk, "build-tools"), process.platform === "win32" ? "aapt.exe" : "aapt");
     checks.push({
       name: "Android build-tools",
-      ok: !!tools && existsSync(tools) && readdirSync(tools).length > 0,
-      detail:
-        "Install the project SDK/build-tools versions in Android Studio SDK Manager.",
+      ok: tools.length > 0,
+      detail: tools.length ? tools.join(", ") : "Install the project build-tools version in Android Studio SDK Manager.",
+    });
+    const sdkManager = sdk && join(sdk, "cmdline-tools", "latest", "bin", process.platform === "win32" ? "sdkmanager.bat" : "sdkmanager");
+    checks.push({
+      name: "Android SDK command-line tools",
+      ok: !!sdkManager && existsSync(sdkManager),
+      optional: true,
+      detail: sdkManager && existsSync(sdkManager) ? sdkManager : "Install Android SDK Command-line Tools (latest) in SDK Manager.",
     });
     checks.push(
       await command(
@@ -129,16 +174,12 @@ export async function diagnose(
         root,
       ),
     );
-    checks.push(
-      await command(
-        androidTool("emulator", root),
-        ["-list-avds"],
-        "Android emulators",
-        "Create an AVD in Android Studio Device Manager.",
-        root,
-        true,
-      ),
-    );
+    try {
+      const avds = await capture(androidTool("emulator", root), ["-list-avds"], root);
+      checks.push({ name: "Android emulators", ok: !!avds.trim(), optional: true, detail: avds.trim() || "Create an AVD in Android Studio Device Manager, or use a physical device." });
+    } catch {
+      checks.push({ name: "Android emulators", ok: false, optional: true, detail: "Install the Android emulator and create an AVD, or use a physical device." });
+    }
   }
   if (target === "ios" || (!target && process.platform === "darwin")) {
     if (process.platform !== "darwin")

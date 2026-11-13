@@ -3,12 +3,15 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import pc from "picocolors";
 import { diagnose, printChecks } from "./doctor.js";
+import { boom } from "./boom.js";
 import { devicesFor } from "./devices.js";
 import { run } from "./run.js";
 import { platform, port, loadConfig } from "./config.js";
 import { findProject, requireProject } from "./project.js";
-import { community, execute } from "./process.js";
+import { community, execute, expo } from "./process.js";
+import { isExpoRouter, pendingExpoRouter } from "./expo-router.js";
 import { createProject } from "./create.js";
+import { upgrade } from "./upgrade.js";
 import {
   managePackages,
   detectPackageManager,
@@ -40,19 +43,35 @@ export function createProgram(): Command {
   program
     .command("create")
     .alias("init")
-    .description(
-      "Create Android and iOS projects through npx and the official initializer",
-    )
-    .argument("<name>")
+    .description("Create a bare React Native project")
+    .argument("[name]")
     .option("--directory <path>")
     .option("--version <version>", "React Native version")
     .option("--cli-version <version>", "compatible Community CLI version/tag")
     .option("--template <source>", "official CLI-compatible template")
-    .option("--pm <manager>", "npm, pnpm, yarn, or bun", "npm")
+    .option("--pm <manager>", "npm, pnpm, yarn, or bun")
+    .option("--router <router>", "none, react-navigation, or expo-router")
+    .option("--store <store>", "none, zustand, redux, or jotai")
+    .option("--styling <style>", "native or nativewind")
     .option("--no-install", "skip dependency installation")
     .option("--pods", "install iOS pods on macOS")
     .option("--no-git", "skip Git initialization")
     .action(async (name, options) => status(createProject(name, options)));
+  program
+    .command("upgrade")
+    .description(
+      "Stage a React Native dependency upgrade in a separate Git worktree",
+    )
+    .argument(
+      "[version]",
+      "exact target React Native version (default: latest)",
+    )
+    .option("--directory <path>", "new worktree directory outside the project")
+    .action(async (version, options) => status(upgrade(version, options)));
+  program
+    .command("boom")
+    .description("Install and configure Windows Android development tools")
+    .action(async () => status(boom()));
   program
     .command("doctor")
     .description("Check general and platform prerequisites")
@@ -209,6 +228,11 @@ export function createProgram(): Command {
   ) => {
     const project = requireProject();
     const metroPort = options.port ?? loadConfig(project.root).port;
+    if (isExpoRouter(project.root)) {
+      if (pendingExpoRouter(project.root)) throw new Error("Run rnx get to finish Expo Router setup.");
+      await status(expo(["start", ...(metroPort ? ["--port", port(metroPort)] : []), ...(options.resetCache ? ["--clear"] : []), ...extra], project));
+      return;
+    }
     await status(
       community(
         [
@@ -328,3 +352,4 @@ export function createProgram(): Command {
       });
   return program;
 }
+

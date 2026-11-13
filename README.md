@@ -36,22 +36,42 @@ rnx emulators android --launch Pixel_API_35
 rnx run android
 ```
 
-`create` (also `init`) generates **both Android and iOS native projects** with the official initializer through npx. Dependencies install with your selected package manager. It refuses an existing destination and never replaces existing project files. `--no-install` and `--no-git` skip those steps.
+`create` (also `init`) generates Android and iOS projects with the official Community CLI. In a terminal, choose a router, state store, React Native version, and package manager; the newest version is marked **Latest**. App code and selected stores live under `src`. Expo Router is added to this bare project using Expo modules and Expo's Metro tooling. Its stable SDK compatibility currently covers React Native 0.83, 0.85, 0.86 and 0.88. React Navigation supports React Native 0.76–0.88. Custom templates keep their own setup. Non-interactive defaults are no router, no store, and npm.
+
+Interactive project creation also asks whether to use standard React Native styles or NativeWind (Tailwind CSS classes). NativeWind installs and configures NativeWind 4, Tailwind CSS, Babel, Metro, and TypeScript types. Select it with `--styling nativewind`; standard styles remain the default for non-interactive creation. NativeWind requires React Native 0.76 or newer.
+
+With `--no-install`, Expo Router's native integration is deferred; run `rnx get` to finish it. On macOS, Expo's installer runs CocoaPods; run `rnx pods` after router dependencies are installed. `rnx start` and `rnx run` use Expo CLI for Expo Router projects. Extra Community CLI arguments and `--verbose` are not supported by this adapter. Projects keep their native Android and iOS directories; Expo prebuild is not required.
 
 ```sh
 rnx create MyApp --pm pnpm
+rnx create MyApp --router react-navigation --store redux --pm pnpm
+rnx create MyApp --router expo-router --store jotai --pm pnpm
 rnx create MyApp --version 0.85.0
 rnx create MyApp --template some-community-template --directory ./apps/MyApp
 rnx create MyApp --pods                 # macOS only
 ```
 
-Explicit RN versions 0.76–0.85 select the matching CLI major from the [official compatibility matrix](https://github.com/react-native-community/cli/tree/main/packages/cli#compatibility). Other RN versions or tags require an explicit `--cli-version`. Without `--version`, the official initializer uses its current default. RNX never upgrades the CLI inside an existing project independently.
+Explicit RN versions 0.76–0.89 select the matching CLI major from the [official compatibility matrix](https://github.com/react-native-community/cli/tree/main/packages/cli#compatibility). Other RN versions or tags require an explicit `--cli-version`. Without `--version`, RNX looks up the latest stable React Native version to select a compatible initializer. RNX never upgrades the CLI inside an existing project independently.
+
+## Staging a React Native upgrade
+
+```sh
+rnx upgrade 0.88.1
+rnx upgrade 0.88.1 --directory ../MyApp-upgrade
+```
+
+The project must be the root of a clean Git repository, with no untracked files or conflicting lockfiles. RNX generates the official target template, creates a separate Git worktree and branch, updates existing React Native core dependencies to the template's versions, and resolves dependencies there with lifecycle scripts disabled. The original worktree stays unchanged; ignored files such as local secrets and configuration are not copied. The command prints the worktree location and an Upgrade Helper link.
+
+This is a **staged dependency upgrade**, not a complete application upgrade. Review and apply native/template changes, investigate third-party package compatibility and any installer errors, run a normal install and iOS pods as appropriate, and test the app on its supported platforms before merging. No CLI can guarantee that application behavior or all packages remain compatible. Expo projects use the [Expo SDK upgrade workflow](https://docs.expo.dev/workflow/upgrading-expo-sdk-walkthrough/); `rnx upgrade` does not modify them.
+
+See [tooling analysis](docs/tooling-analysis.md) for Ignite, Community CLI, Metro, debugging, and boilerplate tradeoffs.
 
 ## Everyday commands
 
 | Task | Command |
 | --- | --- |
 | Diagnose host/project | `rnx doctor [android\|ios] --verbose` |
+| Install Windows Android tools | `rnx boom` |
 | Setup instructions | `rnx setup [android\|ios]` |
 | Install project dependencies and iOS gems/pods | `rnx setup ios --install` |
 | List physical/virtual devices | `rnx devices [android\|ios]` |
@@ -70,6 +90,8 @@ Explicit RN versions 0.76–0.85 select the matching CLI major from the [officia
 | Environment/native config | `rnx info` / `rnx config` |
 | Tests / static analysis | `rnx test` / `rnx analyze` (project scripts) |
 
+`rnx boom` installs and configures Android development tools on Windows, even outside a project. It uses WinGet to install Android Studio and JDK 17 when missing, installs Google's SDK command-line tools if needed, and uses SDK Manager to install platform-tools, emulator, a platform and build-tools. It saves `JAVA_HOME` and `ANDROID_HOME` for the current user. Open a new terminal afterward. Installer elevation and license prompts may require interaction. It reads literal SDK versions from `android/build.gradle` when available; otherwise it uses platform 35 and build-tools 36.0.0. Create an Android virtual device in Android Studio or connect a physical device. Run `rnx doctor` for diagnostics without installing anything. macOS and Linux automatic installation are not yet supported.
+
 Commands can run from any directory inside a React Native project. One ready device is selected automatically; several devices prompt interactively. Non-interactive sessions require `--device`. Devices that are offline, unauthorized, or unavailable are shown and rejected for runs. `run` without a platform uses saved defaults, the sole supported platform, or a prompt. Use `--` for additional native options:
 
 ```sh
@@ -80,7 +102,7 @@ rnx build apk --module mobile -- --stacktrace
 rnx test -- --watch
 ```
 
-`run` delegates Metro ownership to the Community CLI. `start`/`metro start` are foreground official Metro sessions; Ctrl-C stops that foreground process. Metro status checks the selected port, without claiming project ownership. Builds retain native output/exit codes and verify the resulting artifact paths. APK defaults to debug, AAB and IPA to release. Android signing and flavors remain in Gradle; iOS signing and schemes remain in Xcode. Custom Android app modules use `--module`; automatic discovery assumes standard native directories. IPA export expects one workspace/project under `ios`.
+For standard React Native projects, interactive debug `rnx run` keeps Metro in the same terminal: `r` reloads JavaScript, `R` rebuilds and restarts the app, `h` shows the keys, and `q` or Ctrl-C ends the session. Android runs also stream React Native JavaScript logs and native warnings from the selected device; the stream can include messages from other React Native apps on that device. React Native Fast Refresh updates supported edits automatically; `r` is a full JavaScript reload and may reset state. RNX reuses an existing Metro on the selected port without stopping it, so ensure it belongs to the same project. `--no-packager`, release builds, and non-interactive runs do not start Metro or the log stream. Expo Router runs use Expo CLI's own terminal controls and logs. `start`/`metro start` remain foreground official Metro sessions. Builds retain native output/exit codes and verify the resulting artifact paths. APK defaults to debug, AAB and IPA to release. Android signing and flavors remain in Gradle; iOS signing and schemes remain in Xcode. Custom Android app modules use `--module`; automatic discovery assumes standard native directories. IPA export expects one workspace/project under `ios`.
 
 ## Packages and npx
 

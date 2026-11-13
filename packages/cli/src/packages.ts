@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { execute } from "./process.js";
 import { requireProject } from "./project.js";
+import { pendingExpoRouter, setupExpoRouter } from "./expo-router.js";
 
 export type PackageManager = "npm" | "pnpm" | "yarn" | "bun";
 export function packageManager(value: string): PackageManager {
@@ -88,6 +89,8 @@ export async function managePackages(
   const pm = options.pm
     ? packageManager(options.pm)
     : detectPackageManager(project.root);
+  if (action === "get" && pendingExpoRouter(project.root))
+    return setupExpoRouter(project.root, pm);
   const code = await execute(
     pm,
     packageArgs(pm, action, packages, options.dev),

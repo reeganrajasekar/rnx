@@ -6,6 +6,8 @@ import {
   type Project,
 } from "./project.js";
 import { androidEnvironment } from "./sdk.js";
+import { createRequire } from "node:module";
+import { join } from "node:path";
 
 export async function execute(
   command: string,
@@ -66,4 +68,12 @@ export async function community(
     project.root,
     androidEnvironment(project.root),
   );
+}
+
+export async function expo(args: string[], project: Project = requireProject()): Promise<number> {
+  const require = createRequire(join(project.root, "package.json"));
+  let cli: string;
+  try { cli = require.resolve("expo/bin/cli"); }
+  catch { throw new Error("Expo CLI is not installed. Run rnx get to finish setup."); }
+  return execute(process.execPath, [cli, ...args], project.root, androidEnvironment(project.root));
 }
