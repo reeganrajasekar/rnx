@@ -88,15 +88,11 @@ rnx test -- --watch
 rnx add react-native-device-info
 rnx add -D prettier
 rnx remove old-package
-rnx pub add @react-navigation/native
-rnx pub remove old-package
-rnx pub get                             # also: rnx get
-rnx pub outdated
-rnx pub upgrade
+rnx get
 rnx exec some-package -- --help         # npx downloads/runs its executable
 ```
 
-Package commands use the selected package manager, preserving its lockfile and autolinking. RNX detects project/workspace `packageManager` and lockfiles, and refuses conflicting lockfiles. Override with `--pm npm|pnpm|yarn|bun`. Native package changes require a rebuild; on macOS, run `rnx pods` for iOS. `pub upgrade` updates within package constraints (modern Yarn re-resolves matching ranges with `up -R`); review dependency changes, particularly React Native/CLI compatibility. For Yarn 2+, `pub outdated` uses read-only `npm outdated` against installed dependencies. `exec` runs code from the named package via npx.
+Package commands use the selected package manager, preserving its lockfile and autolinking. RNX detects project/workspace `packageManager` and lockfiles, and refuses conflicting lockfiles. Override with `--pm npm|pnpm|yarn|bun`. Native package changes require a rebuild; on macOS, run `rnx pods` for iOS. `exec` runs code from the named package via npx.
 
 ## Android devices
 

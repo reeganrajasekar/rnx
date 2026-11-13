@@ -38,7 +38,13 @@ it('creates through npx, saves the chosen manager, and respects no-install', () 
 it('routes package additions to the selected manager and preserves package-manager errors', () => {
   tool('npm', "console.log('PACKAGES', process.argv.slice(2).join(' ')); process.exit(9);");
   writeFileSync(join(root, 'package.json'), JSON.stringify({ dependencies: { 'react-native': '*' }, packageManager: 'npm@11.0.0' }));
-  const result = spawnSync(process.execPath, [entry, 'pub', 'add', 'example@1.0.0', '--dev'], { cwd: root, env, encoding: 'utf8' });
+  const result = spawnSync(process.execPath, [entry, 'add', 'example@1.0.0', '--dev'], { cwd: root, env, encoding: 'utf8' });
   expect(result.status, result.stderr).toBe(9);
   expect(result.stdout).toContain('PACKAGES install example@1.0.0 --save-dev');
+});
+
+it('rejects the removed pub command', () => {
+  const result = spawnSync(process.execPath, [entry, 'pub', 'get'], { cwd: root, env, encoding: 'utf8' });
+  expect(result.status).not.toBe(0);
+  expect(result.stderr).toContain("unknown command 'pub'");
 });

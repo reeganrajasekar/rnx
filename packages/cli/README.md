@@ -10,7 +10,7 @@ rnx doctor
 rnx devices
 rnx run android
 rnx add react-native-device-info
-rnx pub get
+rnx get
 rnx exec some-package -- --help
 rnx build apk --release
 ```

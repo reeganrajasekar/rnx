@@ -21,7 +21,3 @@ it('uses npm dev dependencies and Yarn removal semantics without a shell', () =>
   expect(() => validatePackages(['--global'])).toThrow('not command options');
 });
 
-it('updates Bun dependencies without upgrading the runtime and supports modern Yarn resolution updates', () => {
-  expect(packageArgs('bun', 'upgrade')).toEqual(['update']);
-  expect(packageArgs('yarn', 'upgrade', ['example'], false, 4)).toEqual(['up', '-R', 'example']);
-});

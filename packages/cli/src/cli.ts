@@ -186,31 +186,9 @@ export function createProgram(): Command {
       );
   };
   addPackages(program);
-  const pub = program
-    .command("pub")
-    .description("Flutter-style package management");
-  addPackages(pub);
-  for (const action of ["get", "upgrade"] as const)
-    pub
-      .command(action)
-      .description(
-        action === "get"
-          ? "Install project dependencies"
-          : "Update packages within the package manager constraints",
-      )
-      .argument("[packages...]")
-      .option("--pm <manager>")
-      .action(async (packages, options) =>
-        status(managePackages(action, packages, options)),
-      );
-  pub
-    .command("outdated")
-    .description("Show outdated dependencies")
-    .option("--pm <manager>")
-    .action(async (options) => status(managePackages("outdated", [], options)));
   program
     .command("get")
-    .description("Install project dependencies (alias of pub get)")
+    .description("Install project dependencies")
     .option("--pm <manager>")
     .action(async (options) => status(managePackages("get", [], options)));
   program
