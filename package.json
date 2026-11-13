@@ -1,0 +1,19 @@
+{
+  "name": "rnx-workspace",
+  "private": true,
+  "packageManager": "pnpm@10.20.0",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "build": "pnpm --filter @rnx/cli build",
+    "test": "pnpm build && vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "execa": "^9.6.1",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
